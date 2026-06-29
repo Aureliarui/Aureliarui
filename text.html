@@ -1,0 +1,872 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>世界树</title>
+<style>
+:root {
+  --bg: #e6e9ef;
+  --bg-card: #e6e9ef;
+  --text: #2d3436;
+  --text-secondary: #636e72;
+  --primary: #6c5ce7;
+  --primary-light: #a29bfe;
+  --shadow-dark: #d1d4db;
+  --shadow-light: #fbfdff;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-lg: 18px;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:system-ui,-apple-system,"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
+button{cursor:pointer;font-family:inherit;background:none;border:none;color:inherit}
+input,textarea,select{font-family:inherit;outline:none}
+.hidden{display:none!important}
+
+/* === Neumorphism Base === */
+.neo-btn{background:var(--bg-card);padding:10px 24px;font-size:.9rem;border-radius:var(--radius);box-shadow:5px 5px 10px var(--shadow-dark),-5px -5px 10px var(--shadow-light);transition:all .2s;color:var(--text)}
+.neo-btn:hover{box-shadow:3px 3px 6px var(--shadow-dark),-3px -3px 6px var(--shadow-light);transform:translateY(-1px)}
+.neo-btn:active{box-shadow:inset 4px 4px 8px var(--shadow-dark),inset -4px -4px 8px var(--shadow-light);transform:translateY(0)}
+.neo-btn.primary{background:var(--primary);color:#fff;box-shadow:4px 4px 10px rgba(108,92,231,0.3),-4px -4px 10px var(--shadow-light)}
+.neo-btn.primary:hover{box-shadow:3px 3px 8px rgba(108,92,231,0.4),-3px -3px 8px var(--shadow-light)}
+.neo-btn.primary:active{box-shadow:inset 4px 4px 8px rgba(0,0,0,0.15),inset -4px -4px 8px rgba(255,255,255,0.1)}
+.neo-input{background:var(--bg-card);padding:12px 16px;font-size:1rem;border-radius:var(--radius);box-shadow:inset 4px 4px 8px var(--shadow-dark),inset -4px -4px 8px var(--shadow-light);transition:box-shadow .2s;color:var(--text);width:100%}
+.neo-input:focus{box-shadow:inset 5px 5px 12px var(--shadow-dark),inset -5px -5px 12px var(--shadow-light)}
+.neo-input::placeholder{color:var(--text-secondary);opacity:.5}
+.neo-select{background:var(--bg-card);padding:10px 14px;font-size:.85rem;border-radius:var(--radius-sm);box-shadow:inset 3px 3px 6px var(--shadow-dark),inset -3px -3px 6px var(--shadow-light);color:var(--text);width:100%;appearance:none}
+.neo-card{background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:7px 7px 14px var(--shadow-dark),-7px -7px 14px var(--shadow-light);padding:1.2rem}
+.neo-card-sm{background:var(--bg-card);border-radius:var(--radius);box-shadow:4px 4px 8px var(--shadow-dark),-4px -4px 8px var(--shadow-light);padding:.8rem 1rem}
+.neo-badge{display:inline-block;padding:2px 12px;font-size:.75rem;border-radius:var(--radius);box-shadow:inset 2px 2px 4px var(--shadow-dark),inset -2px -2px 4px var(--shadow-light);color:var(--text-secondary)}
+.neo-line{height:2px;background:var(--shadow-dark);margin:1rem 0;border-radius:2px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeUp .35s ease}
+#home{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
+#home .brand{font-size:3rem;font-weight:700;letter-spacing:4px;color:var(--primary);margin-bottom:.3rem}
+#home .subtitle{font-size:.9rem;color:var(--text-secondary);margin-bottom:2.5rem;letter-spacing:2px;text-align:center;width:100%}
+#home .home-input-wrap{width:100%;max-width:480px}
+#home .home-input-wrap .neo-input{text-align:center;font-size:1.05rem;padding:14px 18px;display:block;margin:0 auto;width:100%}
+#home .mode-select{display:flex;gap:12px;margin-top:1.2rem;justify-content:center;opacity:0;transition:opacity .4s}
+#home .mode-select.show{opacity:1}
+#home .mode-select .neo-btn{flex:1;text-align:center;padding:14px 16px;font-size:.9rem}
+#chat{display:none;min-height:100vh;padding:2rem 1.5rem;max-width:720px;margin:0 auto}
+#chat.active{display:block}
+.chat-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+.chat-header .back-btn{font-size:.85rem;padding:6px 16px;border-radius:var(--radius-sm);box-shadow:3px 3px 6px var(--shadow-dark),-3px -3px 6px var(--shadow-light);color:var(--text-secondary)}
+.chat-header .back-btn:active{box-shadow:inset 3px 3px 6px var(--shadow-dark),inset -3px -3px 6px var(--shadow-light)}
+.msg-group{margin-bottom:1.2rem;animation:fadeUp .3s ease}
+.msg-question{position:relative;padding:.9rem 1.3rem;background:var(--bg-card);border-radius:var(--radius);box-shadow:5px 5px 10px var(--shadow-dark),-5px -5px 10px var(--shadow-light);margin-bottom:.3rem;color:var(--text)}
+.msg-question::before{content:"Q";position:absolute;top:-8px;left:12px;background:var(--bg);padding:0 8px;font-size:.7rem;font-weight:700;color:var(--primary);border-radius:4px;box-shadow:inset 2px 2px 4px var(--shadow-dark),inset -2px -2px 4px var(--shadow-light)}
+.msg-answer{position:relative;padding:.8rem 1.3rem;background:var(--bg-card);border-radius:var(--radius);box-shadow:inset 3px 3px 6px var(--shadow-dark),inset -3px -3px 6px var(--shadow-light);margin-left:1.5rem;color:var(--text-secondary)}
+.msg-answer::before{content:"A";position:absolute;top:-8px;left:12px;background:var(--bg);padding:0 8px;font-size:.7rem;font-weight:700;color:var(--primary);border-radius:4px;box-shadow:inset 2px 2px 4px var(--shadow-dark),inset -2px -2px 4px var(--shadow-light)}
+.msg-user-q{position:relative;padding:.8rem 1.3rem;background:var(--bg-card);border-radius:var(--radius);box-shadow:3px 3px 6px var(--shadow-dark),-3px -3px 6px var(--shadow-light);opacity:.85;margin-left:1.5rem}
+.msg-user-q::before{content:"自";position:absolute;top:-8px;left:12px;background:var(--bg);padding:0 6px;font-size:.65rem;font-weight:700;color:var(--text-secondary);border-radius:4px;box-shadow:inset 2px 2px 4px var(--shadow-dark),inset -2px -2px 4px var(--shadow-light)}
+#messages{padding-bottom:1rem}
+.chat-input-area{margin-top:1rem;position:sticky;bottom:0;background:var(--bg);padding:.8rem 0;border-radius:var(--radius-lg)}
+.chat-input-row{display:flex;gap:8px}
+.chat-input-row .neo-input{flex:1}
+.chat-buttons{display:flex;gap:8px;margin-top:.6rem;flex-wrap:wrap}
+.chat-buttons .neo-btn{font-size:.8rem;padding:6px 14px}
+#result{display:none;min-height:100vh;padding:2rem 1.5rem;max-width:960px;margin:0 auto}
+#result.active{display:block}
+.result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.result-header h2{font-size:1.1rem;letter-spacing:1px;color:var(--primary)}
+.result-controls{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
+.result-controls .neo-btn{font-size:.78rem;padding:4px 12px;background:var(--bg-card);border-radius:var(--radius-sm);box-shadow:3px 3px 6px var(--shadow-dark),-3px -3px 6px var(--shadow-light)}
+.result-controls .neo-btn.active{background:var(--primary);color:#fff;box-shadow:inset 3px 3px 6px rgba(0,0,0,0.15),inset -3px -3px 6px rgba(255,255,255,0.1)}
+#resultContent{min-height:300px;animation:fadeUp .35s ease}
+#sidebarToggle{position:fixed;top:16px;right:16px;z-index:100;font-size:1.2rem;padding:8px 14px;background:var(--bg-card);border-radius:var(--radius);box-shadow:4px 4px 8px var(--shadow-dark),-4px -4px 8px var(--shadow-light);line-height:1;color:var(--text)}
+#sidebarToggle:active{box-shadow:inset 3px 3px 6px var(--shadow-dark),inset -3px -3px 6px var(--shadow-light)}
+#sidebar{position:fixed;top:0;right:-340px;width:320px;height:100vh;background:var(--bg-card);border-radius:var(--radius-lg) 0 0 var(--radius-lg);box-shadow:-5px 0 15px var(--shadow-dark);z-index:99;transition:right .3s;overflow-y:auto;padding:1.2rem}
+#sidebar.open{right:0}
+.sidebar-section{margin-bottom:1.5rem}
+.sidebar-section h3{font-size:.85rem;margin-bottom:.6rem;padding-bottom:6px;color:var(--text-secondary);letter-spacing:1px;border-bottom:2px solid var(--shadow-dark)}
+.history-item{padding:.5rem .8rem;background:var(--bg-card);border-radius:var(--radius-sm);box-shadow:inset 2px 2px 4px var(--shadow-dark),inset -2px -2px 4px var(--shadow-light);margin-bottom:4px;display:flex;justify-content:space-between;font-size:.8rem}
+.history-item .del-btn{border-radius:4px;padding:0 6px;font-size:.7rem;opacity:.4;cursor:pointer;box-shadow:2px 2px 4px var(--shadow-dark),-2px -2px 4px var(--shadow-light)}
+.history-item .del-btn:active{box-shadow:inset 2px 2px 4px var(--shadow-dark),inset -2px -2px 4px var(--shadow-light)}
+.settings-row{margin-bottom:.8rem}
+.settings-row label{display:block;font-size:.8rem;color:var(--text-secondary);margin-bottom:4px}
+.settings-row select,.settings-row input{width:100%;padding:8px 12px;font-size:.85rem;background:var(--bg-card);border-radius:var(--radius-sm);box-shadow:inset 3px 3px 6px var(--shadow-dark),inset -3px -3px 6px var(--shadow-light);color:var(--text);appearance:none}
+.settings-row input[type="color"]{height:36px;padding:4px;cursor:pointer;border-radius:var(--radius)}
+.kb-item{padding:.5rem .8rem;background:var(--bg-card);border-radius:var(--radius-sm);box-shadow:inset 2px 2px 4px var(--shadow-dark),inset -2px -2px 4px var(--shadow-light);margin-bottom:3px;font-size:.8rem;display:flex;justify-content:space-between;color:var(--text-secondary)}
+.kb-item .kb-del{opacity:.3;cursor:pointer;border-radius:4px;padding:0 5px;font-size:.7rem;box-shadow:2px 2px 4px var(--shadow-dark),-2px -2px 4px var(--shadow-light)}
+.kb-item .kb-del:active{box-shadow:inset 2px 2px 4px var(--shadow-dark),inset -2px -2px 4px var(--shadow-light)}
+.kb-add{display:flex;gap:6px;margin-top:6px}
+.kb-add input{flex:1;padding:6px 10px;font-size:.8rem;background:var(--bg-card);border-radius:var(--radius-sm);box-shadow:inset 3px 3px 6px var(--shadow-dark),inset -3px -3px 6px var(--shadow-light);color:var(--text)}
+.kb-add button{padding:6px 14px;font-size:.8rem;background:var(--bg-card);border-radius:var(--radius-sm);box-shadow:3px 3px 6px var(--shadow-dark),-3px -3px 6px var(--shadow-light)}
+.kb-add button:active{box-shadow:inset 3px 3px 6px var(--shadow-dark),inset -3px -3px 6px var(--shadow-light)}
+.mindmap-container{width:100%;min-height:400px;border-radius:var(--radius);background:var(--bg-card);box-shadow:inset 4px 4px 8px var(--shadow-dark),inset -4px -4px 8px var(--shadow-light);overflow:auto}
+#mindmapSvg{width:100%;min-height:400px}
+.mm-node text{font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;fill:var(--text)}
+.mm-node rect,.mm-node ellipse{fill:var(--bg-card);stroke:var(--text-secondary);stroke-width:1}
+.mm-node .root-rect{fill:var(--primary);stroke:none}
+.mm-node .root-text{fill:#fff;font-weight:600}
+.mm-edge{stroke:var(--text-secondary);stroke-width:1;fill:none;opacity:.5}
+.plan-summary .plan-card{padding:1rem 1.2rem;background:var(--bg-card);border-radius:var(--radius);box-shadow:5px 5px 10px var(--shadow-dark),-5px -5px 10px var(--shadow-light);margin-bottom:.5rem}
+.plan-summary .plan-card .plan-title{font-weight:700;font-size:.95rem;margin-bottom:4px;color:var(--text)}
+.plan-summary .plan-meta{display:flex;gap:12px;font-size:.8rem;color:var(--text-secondary);margin-top:6px}
+.plan-timeline{position:relative;padding-left:2rem}
+.plan-timeline::before{content:"";position:absolute;left:8px;top:0;bottom:0;width:3px;background:var(--shadow-dark);border-radius:3px}
+.plan-item-tl{position:relative;padding:.7rem 1rem;margin-bottom:.8rem;background:var(--bg-card);border-radius:var(--radius);box-shadow:4px 4px 8px var(--shadow-dark),-4px -4px 8px var(--shadow-light)}
+.plan-item-tl::before{content:"";position:absolute;left:-1.6rem;top:1rem;width:12px;height:12px;background:var(--primary);border-radius:50%;box-shadow:2px 2px 4px var(--shadow-dark)}
+.plan-table{width:100%;border-collapse:separate;border-spacing:0;border-radius:var(--radius-sm);overflow:hidden;box-shadow:3px 3px 6px var(--shadow-dark),-3px -3px 6px var(--shadow-light)}
+.plan-table td,.plan-table th{padding:8px 12px;font-size:.85rem;text-align:left;background:var(--bg-card)}
+.plan-table th{background:var(--bg-card);color:var(--primary);font-weight:600;font-size:.8rem;box-shadow:inset 0 -2px 0 var(--shadow-dark)}
+.plan-table td{border-top:1px solid var(--shadow-dark)}
+.plan-todo{padding:.7rem 1rem;background:var(--bg-card);border-radius:var(--radius-sm);box-shadow:inset 2px 2px 4px var(--shadow-dark),inset -2px -2px 4px var(--shadow-light);margin-bottom:4px;font-size:.85rem;display:flex;align-items:center;gap:8px;color:var(--text-secondary)}
+.plan-todo strong{color:var(--text)}
+.modal-mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:200;justify-content:center;align-items:center;padding:1rem;backdrop-filter:blur(4px)}
+.modal-mask.active{display:flex}
+.modal-box{background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:10px 10px 20px var(--shadow-dark),-10px -10px 20px var(--shadow-light);width:90%;max-width:500px;max-height:80vh;padding:1.5rem;position:relative;overflow-y:auto}
+.modal-box h3{font-size:1.05rem;margin-bottom:1rem;color:var(--primary)}
+.modal-close{position:absolute;top:12px;right:14px;font-size:1.2rem;padding:2px 10px;background:var(--bg-card);border-radius:var(--radius-sm);box-shadow:3px 3px 6px var(--shadow-dark),-3px -3px 6px var(--shadow-light);line-height:1.3;color:var(--text-secondary)}
+.modal-close:active{box-shadow:inset 3px 3px 6px var(--shadow-dark),inset -3px -3px 6px var(--shadow-light)}
+@keyframes neoPulse{0%{opacity:.5}50%{opacity:1}100%{opacity:.5}}
+.api-status{display:inline-flex;align-items:center;gap:4px;font-size:.75rem;padding:2px 10px;border-radius:var(--radius);margin-top:4px}
+.api-status.ok{color:#00b894;box-shadow:inset 2px 2px 4px var(--shadow-dark),inset -2px -2px 4px var(--shadow-light)}
+.api-status.err{color:#d63031;box-shadow:inset 2px 2px 4px var(--shadow-dark),inset -2px -2px 4px var(--shadow-light)}
+.api-status.testing{color:var(--text-secondary);animation:neoPulse 1s ease-in-out infinite}
+@media(max-width:600px){#home .brand{font-size:2.2rem}#home .mode-select{flex-direction:column}#sidebar{width:280px;right:-300px}}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--shadow-dark);border-radius:10px}
+</style>
+</head>
+<body>
+<button id="sidebarToggle">☰</button>
+<div id="home">
+  <div class="brand">世界树</div>
+  <div class="subtitle">把你的问题种成计划</div>
+  <div class="home-input-wrap">
+    <input type="text" id="homeInput" class="neo-input" placeholder="输入你的目标或想法..." autocomplete="off">
+    <div class="mode-select" id="modeSelect">
+      <button class="neo-btn" data-mode="brainstorm">🧠 头脑风暴一个想法</button>
+      <button class="neo-btn primary" data-mode="goal">🎯 完成一个目标</button>
+    </div>
+  </div>
+</div>
+
+<div id="chat">
+  <div class="chat-header">
+    <button class="neo-btn back-btn" onclick="backToHome()">← 返回</button>
+    <span class="mode-tag" id="chatModeTag"></span>
+  </div>
+  <div id="messages"></div>
+  <div class="chat-input-area">
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" class="neo-input" placeholder="输入回答..." autocomplete="off">
+      <button class="neo-btn" onclick="sendChat()">→</button>
+    </div>
+    <div class="chat-buttons">
+      <button class="neo-btn" onclick="generateResult()">📋 生成结果</button>
+      <button class="neo-btn" onclick="addUserQuestion()">➕ 自己加一个问题</button>
+    </div>
+  </div>
+</div>
+
+<div id="result">
+  <div class="result-header">
+    <h2 id="resultTitle">结果</h2>
+    <button class="neo-btn" onclick="backToChat()">← 返回对话</button>
+  </div>
+  <div class="result-controls" id="resultControls"></div>
+  <hr class="neo-line">
+  <div id="resultContent"></div>
+</div>
+
+<div id="sidebar">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+    <div style="font-weight:700;font-size:.95rem;letter-spacing:2px">世界树</div>
+    <button class="neo-btn" style="font-size:.8rem;padding:2px 10px" onclick="closeSidebar()">✕</button>
+  </div>
+  <div class="sidebar-section"><h3>📄 历史会话</h3><div id="historyList"></div></div>
+  <div class="sidebar-section">
+    <h3>📚 知识库</h3>
+    <div id="kbList"></div>
+    <div class="kb-add">
+      <input type="text" id="kbInput" placeholder="添加笔记...">
+      <button onclick="addKB()">+</button>
+    </div>
+  </div>
+  <div class="sidebar-section">
+    <h3>⚙ 设置</h3>
+    <div class="settings-row">
+      <label>AI 模型</label>
+      <select id="settingAiMode" onchange="onAIModeChange()">
+        <option value="deepseek">DeepSeek</option>
+        <option value="kimi">Kimi</option>
+        <option value="doubao">豆包</option>
+      </select>
+    </div>
+    <div class="settings-row" id="apiKeyRow">
+      <label id="apiKeyLabel">API Key</label>
+      <div style="display:flex;gap:8px">
+        <input type="password" id="apiKeyInput" placeholder="输入你的 API Key..." onchange="saveAPIKey()" style="flex:1;background:var(--bg-card);border-radius:var(--radius-sm);box-shadow:inset 3px 3px 6px var(--shadow-dark),inset -3px -3px 6px var(--shadow-light);padding:8px 12px;color:var(--text);font-size:.85rem">
+        <button class="neo-btn" onclick="testAPIConnection()" style="padding:8px 14px;font-size:.78rem;white-space:nowrap">测试连接</button>
+      </div>
+      <div id="apiStatus" class="api-status" style="display:none"></div>
+      <div style="font-size:.7rem;margin-top:4px">
+        <a id="apiRegisterLink" href="https://platform.deepseek.com/sign_up" target="_blank" style="color:var(--primary);text-decoration:none;opacity:.7">📝 注册领取免费额度 →</a>
+      </div>
+    </div>
+    <div class="settings-row">
+      <label>思维导图风格</label>
+      <select id="settingMindmapStyle" onchange="applySetting()">
+        <option value="tree">树状图</option>
+        <option value="free">自由画布</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <label>计划查看粒度</label>
+      <select id="settingPlanView" onchange="applySetting()">
+        <option value="full">全部计划</option>
+        <option value="weekly">按周</option>
+        <option value="daily">按天</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <label>计划呈现格式</label>
+      <select id="settingPlanFormat" onchange="applySetting()">
+        <option value="timeline">时间线</option>
+        <option value="table">表格</option>
+        <option value="todo">待办清单</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <label>字体</label>
+      <select id="settingFont" onchange="applySetting()">
+        <option value="system">系统默认</option>
+        <option value="simsun">宋体</option>
+        <option value="simkai">楷体</option>
+        <option value="simfang">仿宋</option>
+        <option value="msyh">微软雅黑</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <label>字号</label>
+      <input type="range" id="settingFontSize" min="14" max="20" value="16" onchange="applySetting()">
+      <span id="fontSizeLabel" style="font-size:.75rem;opacity:.5">16px</span>
+    </div>
+    <div class="settings-row">
+      <label>自定义字体上传</label>
+      <input type="file" id="fontUpload" accept=".ttf,.otf,.woff,.woff2" onchange="uploadFont(event)">
+    </div>
+    <div class="settings-row">
+      <label>自定义颜色</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="color" id="settingPrimaryColor" value="#6c5ce7" onchange="applySetting()" style="width:36px;height:36px;padding:2px;background:var(--bg-card);border-radius:var(--radius);box-shadow:inset 2px 2px 4px var(--shadow-dark),inset -2px -2px 4px var(--shadow-light);cursor:pointer">
+        <span style="font-size:.75rem;color:var(--text-secondary)">主色</span>
+        <input type="color" id="settingBgColor" value="#e6e9ef" onchange="applySetting()" style="width:36px;height:36px;padding:2px;background:var(--bg-card);border-radius:var(--radius);box-shadow:inset 2px 2px 4px var(--shadow-dark),inset -2px -2px 4px var(--shadow-light);cursor:pointer">
+        <span style="font-size:.75rem;color:var(--text-secondary)">背景</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3 id="modalTitle"></h3>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<script>
+// Apply random rotation for hand-drawn feel
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.neo-btn, .msg-question, .msg-answer, .msg-user-q, .plan-card, .plan-item-tl, .neo-badge, .history-item').forEach(function(el) {
+    el.style.setProperty('--r', (Math.random() - 0.5) * 1.2 + 'deg');
+  });
+  var obs = new MutationObserver(function(muts) {
+    muts.forEach(function(mut) {
+      mut.addedNodes.forEach(function(node) {
+        if (node.nodeType === 1) {
+          node.querySelectorAll && node.querySelectorAll('.msg-question, .msg-answer, .msg-user-q, .plan-card, .plan-item-tl, .neo-badge, .history-item').forEach(function(el) {
+            if (!el.style.getPropertyValue('--r')) {
+              el.style.setProperty('--r', (Math.random() - 0.5) * 1.2 + 'deg');
+            }
+          });
+        }
+      });
+    });
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
+});
+
+const STATE_KEY = "worldtree_v3_state";
+const KB_KEY = "worldtree_v3_kb";
+const API_KEY_STORAGE = "worldtree_v3_api";
+let state = loadState();
+let currentSessionId = null;
+let isProcessing = false;
+
+function defaultState() {
+  return {
+    sessions: [],
+    settings: {
+      aiMode: "deepseek",
+      mindmapStyle: "tree",
+      planView: "full",
+      planFormat: "timeline",
+      font: "system",
+      fontSize: 16,
+      bgColor: "#e6e9ef",
+      primaryColor: "#6c5ce7",
+      borderColor: "#2d3436"
+    },
+    kb: loadKB()
+  };
+}
+
+function loadState() {
+  try {
+    var raw = localStorage.getItem(STATE_KEY);
+    if (raw) { var d = JSON.parse(raw); if (!d.settings) d.settings = defaultState().settings; if (!d.sessions) d.sessions = []; return d; }
+  } catch(e) {}
+  return defaultState();
+}
+
+function saveState() { localStorage.setItem(STATE_KEY, JSON.stringify(state)); }
+function loadKB() { try { return JSON.parse(localStorage.getItem(KB_KEY) || "[]"); } catch(e) { return []; } }
+function saveKB() { localStorage.setItem(KB_KEY, JSON.stringify(state.kb)); }
+function loadAPIKey() { return localStorage.getItem(API_KEY_STORAGE) || ""; }
+function saveAPIKey() { var k = document.getElementById("apiKeyInput").value.trim(); if (k) localStorage.setItem(API_KEY_STORAGE, k); }
+
+document.addEventListener("DOMContentLoaded", function() {
+  var input = document.getElementById("homeInput");
+  input.addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && this.value.trim()) { document.getElementById("modeSelect").classList.add("show"); }
+  });
+  input.addEventListener("input", function() {
+    if (this.value.trim()) { document.getElementById("modeSelect").classList.add("show"); }
+    else { document.getElementById("modeSelect").classList.remove("show"); }
+  });
+  document.querySelectorAll("#modeSelect .neo-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() { startSession(this.dataset.mode); });
+  });
+  document.getElementById("chatInput").addEventListener("keydown", function(e) { if (e.key === "Enter" && !isProcessing) sendChat(); });
+  var savedKey = loadAPIKey();
+  if (savedKey) document.getElementById("apiKeyInput").value = savedKey;
+  loadSettings(); applySetting(); renderHistory(); renderKB();
+  updateAPIStatusIcon();
+});
+
+function startSession(mode) {
+  var goal = document.getElementById("homeInput").value.trim();
+  if (!goal) { alert("请先输入目标或想法"); return; }
+  var session = { id: "s_" + Date.now(), goal: goal, mode: mode, messages: [], result: null, createdAt: new Date().toISOString() };
+  state.sessions.unshift(session);
+  currentSessionId = session.id;
+  saveState();
+  document.getElementById("home").style.display = "none";
+  document.getElementById("chat").classList.add("active");
+  document.getElementById("result").classList.remove("active");
+  var modeName = mode === "goal" ? "完成目标" : "头脑风暴";
+  document.getElementById("chatModeTag").textContent = modeName + " · " + goal.slice(0, 30);
+  document.getElementById("messages").innerHTML = "";
+  askNextQuestions();
+}
+
+function backToHome() {
+  document.getElementById("home").style.display = "flex";
+  document.getElementById("chat").classList.remove("active");
+  document.getElementById("result").classList.remove("active");
+  currentSessionId = null;
+}
+
+function backToChat() {
+  document.getElementById("result").classList.remove("active");
+  document.getElementById("chat").classList.add("active");
+}
+
+function getCurrentSession() {
+  if (!currentSessionId) return null;
+  return state.sessions.find(function(s) { return s.id === currentSessionId; });
+}
+
+function escapeHtml(t) {
+  return String(t || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function askNextQuestions() {
+  var session = getCurrentSession();
+  if (!session) return;
+  var key = loadAPIKey();
+  if (key) { askAI(session); }
+  else { alert("请先在侧边栏设置中填写 API Key 🔑"); }
+}
+
+async function askAI(session) {
+  isProcessing = true;
+  var loadingEl = document.createElement("div");
+  loadingEl.className = "msg-loading";
+  loadingEl.id = "aiLoading";
+  loadingEl.textContent = "⏳ AI 思考中...";
+  document.getElementById("messages").appendChild(loadingEl);
+  try {
+    var apiKey = loadAPIKey();
+    if (!apiKey) { isProcessing = false; loadingEl.remove(); alert("请先在侧边栏设置中填写 API Key"); return; }
+    var msgs = [{ role: "system", content: session.mode === "goal" ? "你是一个目标拆解助手。用户想完成一个目标，请提出1-3个有针对性的后续问题，帮助用户把目标拆解成可执行计划。每次只提问不回答，一行一个问题。" : "你是一个头脑风暴助手。用户有一个想法，请提出1-3个发散性问题帮助用户深入思考。每次只提问不回答，一行一个问题。" }];
+    msgs.push({ role: "user", content: "我的目标/想法是：" + session.goal });
+    for (var i = 0; i < session.messages.length; i++) {
+      var m = session.messages[i];
+      if (m.role === "question") msgs.push({ role: "assistant", content: m.text });
+      else if (m.role === "answer" || m.role === "user_question") msgs.push({ role: "user", content: m.text });
+    }
+    var mode = state.settings.aiMode;
+    var url, model;
+    if (mode === "deepseek") { url = "https://api.deepseek.com/v1/chat/completions"; model = "deepseek-chat"; }
+    else if (mode === "kimi") { url = "https://api.moonshot.cn/v1/chat/completions"; model = "moonshot-v1-8k"; }
+    else if (mode === "doubao") { url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"; model = "doubao-pro-32k"; }
+    else { throw new Error("未知AI模式"); }
+    var resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
+      body: JSON.stringify({ model: model, messages: msgs, temperature: 0.8, max_tokens: 1000 })
+    });
+    if (!resp.ok) throw new Error("API error: " + resp.status);
+    var data = await resp.json();
+    var text = data.choices[0].message.content;
+    loadingEl.remove();
+    isProcessing = false;
+    var questions = text.split("\n").map(function(l) { return l.trim().replace(/^\d+[\.\、\．\-\*]\s*/,""); }).filter(function(l) { return l.length > 5; }).slice(0, 3);
+    if (questions.length === 0) { addQuestion(text); }
+    else { for (var qi = 0; qi < questions.length; qi++) { addQuestion(questions[qi]); } }
+  } catch(err) {
+    loadingEl.remove();
+    isProcessing = false;
+    console.error(err);
+    alert("AI 连接失败：请检查 API Key 是否正确以及网络连接");
+  }
+}
+
+function addQuestion(text) {
+  var session = getCurrentSession();
+  if (!session) return;
+  session.messages.push({ role: "question", text: text, timestamp: Date.now() });
+  saveState();
+  var container = document.getElementById("messages");
+  var div = document.createElement("div");
+  div.className = "msg-group doodle-in";
+  div.innerHTML = '<div class="msg-question">' + escapeHtml(text) + '</div>';
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function sendChat() {
+  var input = document.getElementById("chatInput");
+  var text = input.value.trim();
+  if (!text || isProcessing) return;
+  input.value = "";
+  var session = getCurrentSession();
+  if (!session) return;
+  var msgs = session.messages;
+  var lastQIdx = -1;
+  for (var i = msgs.length - 1; i >= 0; i--) { if (msgs[i].role === "question") { lastQIdx = i; break; } }
+  session.messages.push({ role: "answer", text: text, questionIdx: lastQIdx, timestamp: Date.now() });
+  saveState();
+  var container = document.getElementById("messages");
+  var groups = container.querySelectorAll(".msg-group");
+  var targetGroup = null;
+  if (lastQIdx >= 0) {
+    for (var g = 0; g < groups.length; g++) {
+      if (parseInt(groups[g].dataset.questionIdx) === lastQIdx) { targetGroup = groups[g]; break; }
+    }
+  }
+  if (targetGroup) {
+    var div = document.createElement("div");
+    div.className = "msg-answer doodle-in";
+    div.textContent = text;
+    targetGroup.appendChild(div);
+  } else {
+    var div = document.createElement("div");
+    div.className = "msg-group doodle-in";
+    div.innerHTML = '<div class="msg-answer" style="margin-left:0">' + escapeHtml(text) + '</div>';
+    container.appendChild(div);
+  }
+  container.scrollTop = container.scrollHeight;
+  setTimeout(askNextQuestions, 500);
+}
+function addUserQuestion() {
+  openModal("➕ 自己加一个问题", '<input type="text" id="userQuestionInput" class="neo-input" placeholder="输入你想问自己的问题..." style="margin-bottom:.5rem"><p style="font-size:.8rem;opacity:.5">可以思考你的目标相关的任何角度</p>', '<button class="neo-btn" onclick="submitUserQuestion()">确定</button><button class="neo-btn" onclick="closeModal()">取消</button>');
+  setTimeout(function() { var el = document.getElementById("userQuestionInput"); if (el) el.focus(); }, 100);
+}
+function submitUserQuestion() {
+  var text = document.getElementById("userQuestionInput").value.trim();
+  if (!text) return;
+  closeModal();
+  var session = getCurrentSession();
+  if (!session) return;
+  session.messages.push({ role: "user_question", text: text, timestamp: Date.now() });
+  saveState();
+  var container = document.getElementById("messages");
+  var div = document.createElement("div");
+  div.className = "msg-group doodle-in";
+  div.innerHTML = '<div class="msg-user-q">' + escapeHtml(text) + '</div>';
+  container.appendChild(div);
+}
+
+function generateResult() {
+  var session = getCurrentSession();
+  if (!session) return;
+  document.getElementById("chat").classList.remove("active");
+  document.getElementById("result").classList.add("active");
+  if (session.mode === "brainstorm") generateMindMap(session);
+  else generatePlan(session);
+}
+
+function generateMindMap(session) {
+  document.getElementById("resultTitle").textContent = "🌲 思维导图";
+  var style = state.settings.mindmapStyle;
+  document.getElementById("resultControls").innerHTML = '<button class="neo-btn' + (style==="tree"?" active":"") + '" onclick="switchMindmapStyle(\'tree\')">树状图</button><button class="neo-btn' + (style==="free"?" active":"") + '" onclick="switchMindmapStyle(\'free\')">自由画布</button>';
+  document.getElementById("resultContent").innerHTML = '<div class="mindmap-container"><svg id="mindmapSvg" viewBox="0 0 800 500"></svg></div>';
+  renderMindMap(session);
+}
+
+function switchMindmapStyle(s) { state.settings.mindmapStyle = s; saveState(); generateMindMap(getCurrentSession()); }
+
+function renderMindMap(session) {
+  var svg = document.getElementById("mindmapSvg");
+  if (!svg) return;
+  var W = 800, H = 500;
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = "";
+  var style = state.settings.mindmapStyle;
+  var nodes = [{ id: "root", text: session.goal.slice(0, 25), x: W/2, y: style === "tree" ? 40 : 50, type: "root" }];
+  var edges = [];
+  var qs = session.messages.filter(function(m) { return m.role === "question" || m.role === "user_question"; });
+  if (style === "tree") {
+    var sp = Math.min(55, (H - 80) / (qs.length + 1));
+    for (var i = 0; i < qs.length && i < 12; i++) {
+      var m = qs[i];
+      var yp = 80 + i * sp * 2;
+      var qt = (m.role === "user_question" ? "📝 " : "") + (m.text.length > 15 ? m.text.slice(0, 15) + "..." : m.text);
+      nodes.push({ id: "q" + i, text: qt, x: W/2 - 180, y: yp, type: "question" });
+      if (i === 0) edges.push({ from: "root", to: "q" + i });
+      else edges.push({ from: "q" + (i-1), to: "q" + i });
+      var answer = session.messages.find(function(m2) { return m2.role === "answer"; });
+      if (answer) {
+        var at = answer.text.length > 18 ? answer.text.slice(0, 18) + "..." : answer.text;
+        nodes.push({ id: "a" + i, text: "A: " + at, x: W/2 + 180, y: yp, type: "answer" });
+        edges.push({ from: "q" + i, to: "a" + i });
+      }
+    }
+  } else {
+    for (var i = 0; i < qs.length && i < 10; i++) {
+      var m = qs[i];
+      var angle = (i / Math.min(qs.length, 10)) * Math.PI * 2;
+      var nx = W/2 + Math.cos(angle) * 150;
+      var ny = H/2 + Math.sin(angle) * 150;
+      var qt = m.text.length > 12 ? m.text.slice(0, 12) + "..." : m.text;
+      nodes.push({ id: "q" + i, text: qt, x: nx, y: ny, type: "question" });
+      edges.push({ from: "root", to: "q" + i, curved: true });
+    }
+  }
+  var ns = "http://www.w3.org/2000/svg";
+  for (var e = 0; e < edges.length; e++) {
+    var fr = nodes.find(function(n) { return n.id === edges[e].from; });
+    var to = nodes.find(function(n) { return n.id === edges[e].to; });
+    if (!fr || !to) continue;
+    var p = document.createElementNS(ns, "path");
+    if (edges[e].curved) p.setAttribute("d", "M" + fr.x + "," + fr.y + " Q" + ((fr.x+to.x)/2) + "," + ((fr.y+to.y)/2 - 20) + " " + to.x + "," + to.y);
+    else p.setAttribute("d", "M" + fr.x + "," + (fr.y + 15) + " C" + fr.x + "," + ((fr.y+to.y)/2) + " " + to.x + "," + ((fr.y+to.y)/2) + " " + to.x + "," + (to.y - 15));
+    p.setAttribute("class", "mm-edge");
+    svg.appendChild(p);
+  }
+  for (var n = 0; n < nodes.length; n++) {
+    var node = nodes[n];
+    var g = document.createElementNS(ns, "g");
+    g.setAttribute("class", "mm-node");
+    var tw = Math.max(node.text.length * 7 + 20, 50);
+    if (node.type === "root") {
+      var r = document.createElementNS(ns, "rect");
+      r.setAttribute("x", node.x - tw/2); r.setAttribute("y", node.y - 13);
+      r.setAttribute("width", tw); r.setAttribute("height", 26);
+      r.setAttribute("rx", "4"); r.setAttribute("class", "root-rect"); r.setAttribute("fill", "#1a1a1a");
+      g.appendChild(r);
+    } else if (node.type === "question") {
+      var e = document.createElementNS(ns, "ellipse");
+      e.setAttribute("cx", node.x); e.setAttribute("cy", node.y);
+      e.setAttribute("rx", tw/2); e.setAttribute("ry", 13);
+      e.setAttribute("stroke-dasharray", "4 3");
+      g.appendChild(e);
+    } else {
+      var r = document.createElementNS(ns, "rect");
+      r.setAttribute("x", node.x - tw/2); r.setAttribute("y", node.y - 12);
+      r.setAttribute("width", tw); r.setAttribute("height", 24);
+      r.setAttribute("rx", "2"); r.setAttribute("stroke-dasharray", "3 2");
+      g.appendChild(r);
+    }
+    var t = document.createElementNS(ns, "text");
+    t.setAttribute("x", node.x); t.setAttribute("y", node.y + 4);
+    t.setAttribute("text-anchor", "middle"); t.setAttribute("font-size", "11");
+    if (node.type === "root") t.setAttribute("fill", "#f8f7f4");
+    t.textContent = node.text;
+    g.appendChild(t);
+    svg.appendChild(g);
+  }
+}
+function generatePlan(session) {
+  document.getElementById("resultTitle").textContent = "📋 行动计划";
+  var view = state.settings.planView, fmt = state.settings.planFormat;
+  document.getElementById("resultControls").innerHTML = ''
+    + '<button class="neo-btn' + (view==="full"?" active":"") + '" onclick="switchPlanView(\'full\')">全部</button>'
+    + '<button class="neo-btn' + (view==="weekly"?" active":"") + '" onclick="switchPlanView(\'weekly\')">按周</button>'
+    + '<button class="neo-btn' + (view==="daily"?" active":"") + '" onclick="switchPlanView(\'daily\')">按天</button>'
+    + '<span style="opacity:.3;margin:0 4px">|</span>'
+    + '<button class="neo-btn' + (fmt==="timeline"?" active":"") + '" onclick="switchPlanFormat(\'timeline\')">时间线</button>'
+    + '<button class="neo-btn' + (fmt==="table"?" active":"") + '" onclick="switchPlanFormat(\'table\')">表格</button>'
+    + '<button class="neo-btn' + (fmt==="todo"?" active":"") + '" onclick="switchPlanFormat(\'todo\')">待办</button>';
+  renderPlanContent(session);
+}
+
+function switchPlanView(v) { state.settings.planView = v; saveState(); generatePlan(getCurrentSession()); }
+function switchPlanFormat(f) { state.settings.planFormat = f; saveState(); generatePlan(getCurrentSession()); }
+
+function renderPlanContent(session) {
+  var content = document.getElementById("resultContent");
+  var allText = session.goal + " " + session.messages.map(function(m) { return m.text; }).join(" ");
+  var info = extractInfo(allText, session.goal);
+  var view = state.settings.planView, fmt = state.settings.planFormat;
+  var h = "";
+  h += '<div class="plan-summary"><div class="plan-card doodle-in"><div class="plan-title">' + escapeHtml(info.summary) + '</div><div class="plan-meta"><span>🎯 ' + escapeHtml(session.goal.slice(0,50)) + '</span><span>📅 ' + info.totalTime + '</span></div></div></div>';
+  h += '<h3 style="font-size:1rem;margin-bottom:.6rem">🏁 里程碑</h3>';
+  if (fmt === "timeline") {
+    h += '<div class="plan-timeline">';
+    for (var i = 0; i < info.milestones.length; i++) {
+      h += '<div class="plan-item-tl doodle-in"><div class="tl-period">' + escapeHtml(info.milestones[i].period) + '</div><div class="tl-text"><strong>' + escapeHtml(info.milestones[i].title) + '</strong><br><span style="opacity:.7;font-size:.82rem">' + escapeHtml(info.milestones[i].detail) + '</span></div></div>';
+    }
+    h += '</div>';
+  } else if (fmt === "table") {
+    h += '<table class="plan-table"><tr><th>阶段</th><th>任务</th><th>说明</th></tr>';
+    for (var i = 0; i < info.milestones.length; i++) {
+      h += '<tr><td>' + escapeHtml(info.milestones[i].period) + '</td><td><strong>' + escapeHtml(info.milestones[i].title) + '</strong></td><td style="font-size:.8rem;opacity:.8">' + escapeHtml(info.milestones[i].detail) + '</td></tr>';
+    }
+    h += '</table>';
+  } else {
+    for (var i = 0; i < info.milestones.length; i++) {
+      h += '<div class="plan-todo doodle-in"><span class="neo-dot"></span><strong>' + escapeHtml(info.milestones[i].period) + '</strong> ' + escapeHtml(info.milestones[i].title) + '<span style="opacity:.6;margin-left:auto;font-size:.8rem">' + escapeHtml(info.milestones[i].detail.slice(0,30)) + '</span></div>';
+    }
+  }
+  if (session.mode === "goal") {
+    h += '<h3 style="font-size:1rem;margin:.8rem 0 .6rem">📅 ' + (view==="daily"?"今天要做":view==="weekly"?"本周计划":"全部执行") + '</h3>';
+    if (view === "daily") {
+      h += '<div class="plan-card doodle-in">';
+      for (var i = 0; i < info.dailyTasks.length; i++) {
+        h += '<div style="display:flex;gap:8px;padding:4px 0"><span class="neo-badge">' + escapeHtml(info.dailyTasks[i].time) + '</span><span>' + escapeHtml(info.dailyTasks[i].task) + '</span></div>';
+      }
+      h += '</div>';
+    } else if (view === "weekly") {
+      h += '<div class="plan-timeline">';
+      for (var i = 0; i < info.weeklyTasks.length; i++) {
+        h += '<div class="plan-item-tl doodle-in"><div class="tl-period">' + escapeHtml(info.weeklyTasks[i].period) + '</div><div class="tl-text">' + escapeHtml(info.weeklyTasks[i].task) + '</div></div>';
+      }
+      h += '</div>';
+    } else {
+      h += '<div class="plan-timeline">';
+      for (var i = 0; i < info.milestones.length; i++) {
+        h += '<div class="plan-item-tl doodle-in"><div class="tl-period">' + escapeHtml(info.milestones[i].period) + '</div><div class="tl-text"><strong>' + escapeHtml(info.milestones[i].title) + '</strong><br><span style="opacity:.7;font-size:.82rem">' + escapeHtml(info.milestones[i].detail) + '</span></div></div>';
+      }
+      h += '</div>';
+    }
+    if (info.notes.length) {
+      h += '<h3 style="font-size:1rem;margin:.8rem 0 .6rem">💡 小建议</h3>';
+      for (var i = 0; i < info.notes.length; i++) { h += '<div class="plan-card" style="font-size:.85rem;padding:.5rem 1rem">' + escapeHtml(info.notes[i]) + '</div>'; }
+    }
+  }
+  content.innerHTML = h;
+}
+
+function extractInfo(text, goal) {
+  var info = { summary: "", totalTime: "待定", milestones: [], dailyTasks: [], weeklyTasks: [], notes: [] };
+  var wcM = text.match(/(\d+)\s*万\s*字/), yrM = text.match(/(\d+)\s*年/), moM = text.match(/(\d+)\s*个?\s*月/);
+  var isWriting = /写|小说|创作|故事/.test(text), isLearning = /学|学习|技能|英语/.test(text), isBusiness = /创业|副业|赚钱|开店/.test(text);
+  if (isWriting) {
+    var wc = wcM ? parseInt(wcM[1]) : 70, tm = moM ? parseInt(moM[1]) : (yrM ? parseInt(yrM[1]) * 12 : 12), daily = Math.ceil(wc * 10000 / (tm * 30));
+    info.summary = "📖 " + wc + "万字作品计划"; info.totalTime = tm + "个月";
+    info.milestones = [{period:"第1-2个月",title:"📐 世界观搭建 & 人物设定",detail:"构建世界观、设计主角、搜集素材"},{period:"第3个月",title:"📝 详细大纲 & 章纲",detail:"写全书分卷大纲、确定主线支线"},{period:"第4-" + (tm-1) + "个月",title:"✍️ 正文写作",detail:"每天" + Math.min(daily,5000) + "字左右"},{period:"最后1个月",title:"🔧 修改 & 润色",detail:"通读全文、修正逻辑漏洞"}];
+    info.dailyTasks = [{time:"15分钟",task:"复盘前一天内容"},{time:"45-90分钟",task:"正文写作 " + Math.min(daily,5000) + "字"},{time:"10分钟",task:"记录灵感"}];
+    info.weeklyTasks = [{period:"每周日",task:"周复盘 + 调整下周计划"}];
+    info.notes = ["保持节奏比爆发更重要","周末留出复盘时间"];
+  } else if (isLearning) {
+    info.summary = "📚 学习计划"; info.totalTime = moM ? moM[0] : "3个月";
+    info.milestones = [{period:"第1-2周",title:"🎯 基础入门",detail:"了解知识框架、准备资源"},{period:"第3-8周",title:"📖 系统学习",detail:"按计划学习核心知识"},{period:"第9-12周",title:"🤝 实践应用",detail:"通过项目/练习巩固"},{period:"第4阶段",title:"🏁 巩固提升",detail:"查漏补缺、拓展深入"}];
+    info.dailyTasks = [{time:"15分钟",task:"复习前一天"},{time:"30-60分钟",task:"学习新内容"},{time:"15分钟",task:"做笔记/总结"}];
+    info.weeklyTasks = [{period:"周末",task:"周复习 + 小练习"}];
+    info.notes = ["学习的关键是少量多次和及时复习"];
+  } else if (isBusiness) {
+    info.summary = "💼 创业/副业计划"; info.totalTime = "3个月";
+    info.milestones = [{period:"第1-2周",title:"🔍 市场调研",detail:"明确目标用户、验证需求"},{period:"第3-4周",title:"📐 方案设计",detail:"制定商业方案、预算规划"},{period:"第2个月",title:"🛠 筹备阶段",detail:"搭建基础、宣传预热"},{period:"第3个月",title:"🚀 启动运营",detail:"正式上线、快速迭代"}];
+    info.dailyTasks = [{time:"30分钟",task:"行业资讯/竞品动态"},{time:"1-2小时",task:"具体执行事项"},{time:"15分钟",task:"当天复盘"}];
+    info.weeklyTasks = [{period:"周末",task:"周复盘 + 调整下周计划"}];
+    info.notes = ["建议先做最小可行性验证"];
+  } else {
+    info.summary = "🎯 目标拆解计划"; info.totalTime = "待定";
+    info.milestones = [{period:"第1步",title:"🔍 明确目标",detail:"写清楚目标、确定衡量标准"},{period:"第2步",title:"📊 资源盘点",detail:"盘点现有资源和缺口"},{period:"第3步",title:"📝 制定方案",detail:"分阶段制定执行方案"},{period:"第4步",title:"🚀 执行迭代",detail:"开始执行，每周复盘调整"}];
+    info.dailyTasks = [{time:"15分钟",task:"确定当天重点"},{time:"视情况",task:"完成核心任务"},{time:"10分钟",task:"当天复盘记录"}];
+    info.weeklyTasks = [{period:"每周",task:"周复盘 + 调整下周计划"}];
+    info.notes = ["大目标拆成小步骤，每天进步一点"];
+  }
+  return info;
+}
+document.getElementById("sidebarToggle").addEventListener("click", function() { document.getElementById("sidebar").classList.toggle("open"); });
+function closeSidebar() { document.getElementById("sidebar").classList.remove("open"); }
+document.addEventListener("click", function(e) { var s = document.getElementById("sidebar"); var t = document.getElementById("sidebarToggle"); if (s.classList.contains("open") && !s.contains(e.target) && !t.contains(e.target)) closeSidebar(); });
+
+function renderHistory() {
+  var list = document.getElementById("historyList"); if (!list) return;
+  if (state.sessions.length === 0) { list.innerHTML = '<div style="font-size:.8rem;opacity:.4;text-align:center;padding:.5rem">还没有历史会话</div>'; return; }
+  list.innerHTML = state.sessions.slice(0,20).map(function(s,i) {
+    return '<div class="history-item"><span style="cursor:pointer;flex:1" onclick="loadSession(\'' + s.id + '\')">' + escapeHtml(s.goal.slice(0,30)) + ' <span style="opacity:.3;font-size:.7rem">' + (s.mode==="goal"?"🎯":"🧠") + '</span></span><span class="del-btn" onclick="deleteHistory(' + i + ')">✕</span></div>';
+  }).join("");
+}
+
+function loadSession(id) {
+  var session = state.sessions.find(function(s) { return s.id === id; }); if (!session) return;
+  currentSessionId = id;
+  document.getElementById("home").style.display = "none";
+  document.getElementById("chat").classList.add("active");
+  document.getElementById("result").classList.remove("active");
+  document.getElementById("chatModeTag").textContent = (session.mode==="goal"?"完成目标":"头脑风暴") + " · " + session.goal.slice(0,30);
+  var container = document.getElementById("messages"); container.innerHTML = "";
+  for (var i = 0; i < session.messages.length; i++) {
+    var m = session.messages[i]; var g = document.createElement("div"); g.className = "msg-group";
+    if (m.role === "question") g.innerHTML = '<div class="msg-question">' + escapeHtml(m.text) + '</div>';
+    else if (m.role === "answer") g.innerHTML = '<div class="msg-answer" style="margin-left:0">' + escapeHtml(m.text) + '</div>';
+    else g.innerHTML = '<div class="msg-user-q">' + escapeHtml(m.text) + '</div>';
+    container.appendChild(g);
+  }
+  closeSidebar();
+}
+
+function deleteHistory(i) { if (!confirm("确定删除这个会话？")) return; state.sessions.splice(i,1); if (currentSessionId && !state.sessions.find(function(s){return s.id===currentSessionId;})) currentSessionId=null; saveState(); renderHistory(); }
+
+function renderKB() {
+  var list = document.getElementById("kbList"); if (!list) return;
+  if (state.kb.length === 0) { list.innerHTML = '<div style="font-size:.8rem;opacity:.4;text-align:center;padding:.5rem">还没有笔记</div>'; return; }
+  list.innerHTML = state.kb.map(function(item,i) { return '<div class="kb-item"><span>' + escapeHtml(item.text) + ' <span style="opacity:.3;font-size:.7rem">' + escapeHtml(item.date) + '</span></span><span class="kb-del" onclick="removeKB(' + i + ')">✕</span></div>'; }).join("");
+}
+
+function addKB() { var inp = document.getElementById("kbInput"); var t = inp.value.trim(); if (!t) return; state.kb.push({text:t,date:new Date().toISOString().slice(0,10)}); saveKB(); saveState(); inp.value=""; renderKB(); }
+function removeKB(i) { state.kb.splice(i,1); saveKB(); saveState(); renderKB(); }
+
+function loadSettings() {
+  var s = state.settings;
+  document.getElementById("settingAiMode").value = s.aiMode;
+  document.getElementById("settingMindmapStyle").value = s.mindmapStyle;
+  document.getElementById("settingPlanView").value = s.planView;
+  document.getElementById("settingPlanFormat").value = s.planFormat;
+  document.getElementById("settingFont").value = s.font;
+  document.getElementById("settingFontSize").value = s.fontSize;
+  document.getElementById("fontSizeLabel").textContent = s.fontSize + "px";
+  document.getElementById("settingBgColor").value = s.bgColor;
+  document.getElementById("settingPrimaryColor").value = s.primaryColor || "#6c5ce7";
+}
+
+function applySetting() {
+  var s = state.settings;
+  s.aiMode = document.getElementById("settingAiMode").value;
+  s.mindmapStyle = document.getElementById("settingMindmapStyle").value;
+  s.planView = document.getElementById("settingPlanView").value;
+  s.planFormat = document.getElementById("settingPlanFormat").value;
+  s.font = document.getElementById("settingFont").value;
+  s.fontSize = parseInt(document.getElementById("settingFontSize").value) || 16;
+  s.bgColor = document.getElementById("settingBgColor").value;
+  s.primaryColor = document.getElementById("settingPrimaryColor").value;
+  document.getElementById("fontSizeLabel").textContent = s.fontSize + "px";
+  var ff = "system-ui,-apple-system,\"Microsoft YaHei\",\"PingFang SC\",sans-serif";
+  if (s.font === "simsun") ff = "SimSun,serif";
+  else if (s.font === "simkai") ff = "KaiTi,serif";
+  else if (s.font === "simfang") ff = "FangSong,serif";
+  else if (s.font === "msyh") ff = "\"Microsoft YaHei\",sans-serif";
+  document.body.style.fontFamily = ff;
+  document.body.style.fontSize = s.fontSize + "px";
+  document.documentElement.style.setProperty("--bg", s.bgColor);
+  document.documentElement.style.setProperty("--bg-card", s.bgColor);
+  document.documentElement.style.setProperty("--text", "#2d3436");
+  document.documentElement.style.setProperty("--primary", s.primaryColor);
+  document.documentElement.style.setProperty("--primary-light", s.primaryColor + "99");
+  document.documentElement.style.setProperty("--shadow-dark", darken(s.bgColor, 20));
+  document.documentElement.style.setProperty("--shadow-light", lighten(s.bgColor, 20));
+  var link = document.getElementById("apiRegisterLink");
+  if (s.aiMode === "deepseek") { link.href = "https://platform.deepseek.com/sign_up"; link.textContent = "\u270d\ufe0f \u6ce8\u518cDeepSeek\u9886500\u4e07\u514d\u8d39tokens \u2192"; }
+  else if (s.aiMode === "kimi") { link.href = "https://platform.moonshot.cn/console/api-keys"; link.textContent = "\u270d\ufe0f \u6ce8\u518cKimi\u9886\u53d6\u514d\u8d39\u989d\u5ea6 \u2192"; }
+  else if (s.aiMode === "doubao") { link.href = "https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey"; link.textContent = "\u270d\ufe0f \u6ce8\u518c\u706b\u5c71\u5f15\u64ce\u9886\u53d6\u514d\u8d39\u989d\u5ea6 \u2192"; }
+  saveState();
+}
+
+function darken(hex, amt) {
+  var c = parseInt(hex.replace("#",""), 16);
+  var r = Math.max(0, (c>>16) - amt);
+  var g = Math.max(0, ((c>>8)&255) - amt);
+  var b = Math.max(0, (c&255) - amt);
+  return "#" + ((r<<16)|(g<<8)|b).toString(16).padStart(6,"0");
+}
+function lighten(hex, amt) {
+  var c = parseInt(hex.replace("#",""), 16);
+  var r = Math.min(255, (c>>16) + amt);
+  var g = Math.min(255, ((c>>8)&255) + amt);
+  var b = Math.min(255, (c&255) + amt);
+  return "#" + ((r<<16)|(g<<8)|b).toString(16).padStart(6,"0");
+}
+function onAIModeChange() {
+  saveAPIKey();
+  applySetting();
+  updateAPIStatusIcon();
+}
+function updateAPIStatusIcon() {
+  var st = document.getElementById("apiStatus");
+  var key = loadAPIKey();
+  if (key && key.length > 10) { st.style.display = "inline-flex"; st.className = "api-status ok"; st.textContent = "\u2713 API Key \u5df2\u4fdd\u5b58"; }
+  else { st.style.display = "none"; }
+}
+async function testAPIConnection() {
+  var key = document.getElementById("apiKeyInput").value.trim();
+  if (!key) { alert("\u8bf7\u5148\u8f93\u5165 API Key"); return; }
+  saveAPIKey();
+  var st = document.getElementById("apiStatus");
+  st.style.display = "inline-flex"; st.className = "api-status testing"; st.textContent = "\u23f3 \u6b63\u5728\u6d4b\u8bd5\u8fde\u63a5...";
+  try {
+    var mode = document.getElementById("settingAiMode").value;
+    var url, model;
+    if (mode === "deepseek") { url = "https://api.deepseek.com/v1/chat/completions"; model = "deepseek-chat"; }
+    else if (mode === "kimi") { url = "https://api.moonshot.cn/v1/chat/completions"; model = "moonshot-v1-8k"; }
+    else if (mode === "doubao") { url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"; model = "doubao-pro-32k"; }
+    var resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+      body: JSON.stringify({ model: model, messages: [{role:"user",content:"hi"}], max_tokens: 5 })
+    });
+    if (resp.ok) { st.className = "api-status ok"; st.textContent = "\u2713 \u8fde\u63a5\u6210\u529f\uff01API Key \u6709\u6548"; }
+    else if (resp.status === 401) { st.className = "api-status err"; st.textContent = "\u2717 API Key \u65e0\u6548\uff0c\u8bf7\u68c0\u67e5\u662f\u5426\u6b63\u786e"; }
+    else { st.className = "api-status err"; st.textContent = "\u2717 \u8fde\u63a5\u5931\u8d25 (HTTP " + resp.status + ")"; }
+  } catch(e) {
+    st.className = "api-status err"; st.textContent = "\u2717 \u7f51\u7edc\u9519\u8bef\uff0c\u8bf7\u68c0\u67e5\u662f\u5426\u80fd\u8bbf\u95ee\u5916\u7f51";
+  }
+}
+function uploadFont(event) {
+  var file = event.target.files[0]; if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var fd = e.target.result; var fn = "custom_" + file.name.replace(/\.[^.]+$/, "");
+    var st = document.createElement("style"); st.textContent = "@font-face{font-family:'" + fn + "';src:url('" + fd + "')}";
+    document.head.appendChild(st);
+    var sel = document.getElementById("settingFont"); var opt = document.createElement("option"); opt.value = fn; opt.textContent = file.name; sel.appendChild(opt); sel.value = fn;
+    state.settings.font = fn; document.body.style.fontFamily = fn + ",system-ui,sans-serif"; saveState();
+  };
+  reader.readAsDataURL(file);
+}
+
+function openModal(title, bodyHTML, footerHTML) {
+  document.getElementById("modalTitle").textContent = title;
+  document.getElementById("modalBody").innerHTML = bodyHTML;
+  document.getElementById("modalFooter").innerHTML = footerHTML;
+  document.getElementById("modal").classList.add("active");
+}
+function closeModal() { document.getElementById("modal").classList.remove("active"); }
+
+document.addEventListener("keydown", function(e) { if (e.key === "Escape") { closeModal(); closeSidebar(); } });
+</script>
+</body>
+</html>
