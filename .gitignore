@@ -1,3 +1,29 @@
-*.backup.*
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# System
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# Logs / temp
+*.log
+_srv.log
+_tmp*.py
+_fix*.py
+_patch*.py
+*_backup*.html
+text2.html
+
+# Existing ignores
 text_backup*
 text2

@@ -197,6 +197,7 @@ input,textarea,select{font-family:inherit;outline:none}
         <option value="deepseek">DeepSeek</option>
         <option value="kimi">Kimi</option>
         <option value="doubao">豆包</option>
+        <option value="ollama">Ollama (本地)</option>
       </select>
     </div>
     <div class="settings-row" id="apiKeyRow">
@@ -306,7 +307,7 @@ function defaultState() {
   return {
     sessions: [],
     settings: {
-      aiMode: "deepseek",
+      aiMode: "ollama",
       mindmapStyle: "tree",
       planView: "full",
       planFormat: "timeline",
@@ -392,6 +393,8 @@ function escapeHtml(t) {
 function askNextQuestions() {
   var session = getCurrentSession();
   if (!session) return;
+  var mode = state.settings.aiMode;
+  if (mode === "ollama") { askAI(session); return; }
   var key = loadAPIKey();
   if (key) { askAI(session); }
   else { alert("请先在侧边栏设置中填写 API Key 🔑"); }
@@ -405,8 +408,11 @@ async function askAI(session) {
   loadingEl.textContent = "⏳ AI 思考中...";
   document.getElementById("messages").appendChild(loadingEl);
   try {
-    var apiKey = loadAPIKey();
-    if (!apiKey) { isProcessing = false; loadingEl.remove(); alert("请先在侧边栏设置中填写 API Key"); return; }
+    var mode = state.settings.aiMode;
+    if (mode !== "ollama") {
+      var apiKey = loadAPIKey();
+      if (!apiKey) { isProcessing = false; loadingEl.remove(); alert("请先在侧边栏设置中填写 API Key"); return; }
+    }
     var msgs = [{ role: "system", content: session.mode === "goal" ? "你是一个目标拆解助手。用户想完成一个目标，请提出1-3个有针对性的后续问题，帮助用户把目标拆解成可执行计划。每次只提问不回答，一行一个问题。" : "你是一个头脑风暴助手。用户有一个想法，请提出1-3个发散性问题帮助用户深入思考。每次只提问不回答，一行一个问题。" }];
     msgs.push({ role: "user", content: "我的目标/想法是：" + session.goal });
     for (var i = 0; i < session.messages.length; i++) {
@@ -416,18 +422,31 @@ async function askAI(session) {
     }
     var mode = state.settings.aiMode;
     var url, model;
-    if (mode === "deepseek") { url = "https://api.deepseek.com/v1/chat/completions"; model = "deepseek-chat"; }
+    if (mode === "ollama") { url = "/api/chat"; model = "deepseek-r1:7b"; }
+    else if (mode === "deepseek") { url = "https://api.deepseek.com/v1/chat/completions"; model = "deepseek-chat"; }
     else if (mode === "kimi") { url = "https://api.moonshot.cn/v1/chat/completions"; model = "moonshot-v1-8k"; }
     else if (mode === "doubao") { url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"; model = "doubao-pro-32k"; }
     else { throw new Error("未知AI模式"); }
     var resp = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
-      body: JSON.stringify({ model: model, messages: msgs, temperature: 0.8, max_tokens: 1000 })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: model, messages: msgs, temperature: 0.8, max_tokens: 1000, stream: false }),
     });
-    if (!resp.ok) throw new Error("API error: " + resp.status);
+    if (!resp.ok) {
+      var errText = "";
+      try { errText = await resp.text(); } catch(e) {}
+      throw new Error("API error " + resp.status + ": " + errText.slice(0, 500));
+    }
     var data = await resp.json();
+    if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error("Unexpected Ollama response:", JSON.stringify(data).slice(0, 1000));
+      throw new Error("Unexpected response format - choices[0].message missing");
+    }
     var text = data.choices[0].message.content;
+    if (text === undefined || text === null) {
+      console.error("Response message has no content:", JSON.stringify(data.choices[0].message));
+      throw new Error("Response message has no content field");
+    }
     loadingEl.remove();
     isProcessing = false;
     var questions = text.split("\n").map(function(l) { return l.trim().replace(/^\d+[\.\、\．\-\*]\s*/,""); }).filter(function(l) { return l.length > 5; }).slice(0, 3);
@@ -437,7 +456,8 @@ async function askAI(session) {
     loadingEl.remove();
     isProcessing = false;
     console.error(err);
-    alert("AI 连接失败：请检查 API Key 是否正确以及网络连接");
+    var msg = err.message || String(err);
+    alert("AI 连接失败：" + msg);
   }
 }
 
@@ -762,6 +782,11 @@ function loadSettings() {
   document.getElementById("fontSizeLabel").textContent = s.fontSize + "px";
   document.getElementById("settingBgColor").value = s.bgColor;
   document.getElementById("settingPrimaryColor").value = s.primaryColor || "#6c5ce7";
+  var apiRow = document.getElementById("apiKeyRow");
+  if (apiRow) {
+    if (s.aiMode === "ollama") { apiRow.style.display = "none"; }
+    else { apiRow.style.display = ""; }
+  }
 }
 
 function applySetting() {
@@ -790,10 +815,16 @@ function applySetting() {
   document.documentElement.style.setProperty("--shadow-dark", darken(s.bgColor, 20));
   document.documentElement.style.setProperty("--shadow-light", lighten(s.bgColor, 20));
   var link = document.getElementById("apiRegisterLink");
-  if (s.aiMode === "deepseek") { link.href = "https://platform.deepseek.com/sign_up"; link.textContent = "\u270d\ufe0f \u6ce8\u518cDeepSeek\u9886500\u4e07\u514d\u8d39tokens \u2192"; }
-  else if (s.aiMode === "kimi") { link.href = "https://platform.moonshot.cn/console/api-keys"; link.textContent = "\u270d\ufe0f \u6ce8\u518cKimi\u9886\u53d6\u514d\u8d39\u989d\u5ea6 \u2192"; }
-  else if (s.aiMode === "doubao") { link.href = "https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey"; link.textContent = "\u270d\ufe0f \u6ce8\u518c\u706b\u5c71\u5f15\u64ce\u9886\u53d6\u514d\u8d39\u989d\u5ea6 \u2192"; }
+  if (s.aiMode === "ollama") { link.style.display = "none"; }
+  else if (s.aiMode === "deepseek") { link.href = "https://platform.deepseek.com/sign_up"; link.textContent = "注册DeepSeek"; link.style.display = ""; }
+  else if (s.aiMode === "kimi") { link.href = "https://platform.moonshot.cn/console/api-keys"; link.textContent = "注册Kimi"; link.style.display = ""; }
+  else if (s.aiMode === "doubao") { link.href = "https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey"; link.textContent = "注册火山引擎"; link.style.display = ""; }
   saveState();
+  var apiRow = document.getElementById("apiKeyRow");
+  if (apiRow) {
+    if (s.aiMode === "ollama") { apiRow.style.display = "none"; }
+    else { apiRow.style.display = ""; }
+  }
 }
 
 function darken(hex, amt) {
@@ -811,7 +842,6 @@ function lighten(hex, amt) {
   return "#" + ((r<<16)|(g<<8)|b).toString(16).padStart(6,"0");
 }
 function onAIModeChange() {
-  saveAPIKey();
   applySetting();
   updateAPIStatusIcon();
 }
@@ -822,20 +852,22 @@ function updateAPIStatusIcon() {
   else { st.style.display = "none"; }
 }
 async function testAPIConnection() {
-  var key = document.getElementById("apiKeyInput").value.trim();
-  if (!key) { alert("\u8bf7\u5148\u8f93\u5165 API Key"); return; }
-  saveAPIKey();
+  var mode = document.getElementById("settingAiMode").value;
+  if (mode === "ollama") {
+    alert("Ollama模式下不需要API Key。\n请确保本地代理服务器已启动：http://localhost:3001"); return;
+  }
   var st = document.getElementById("apiStatus");
   st.style.display = "inline-flex"; st.className = "api-status testing"; st.textContent = "\u23f3 \u6b63\u5728\u6d4b\u8bd5\u8fde\u63a5...";
   try {
     var mode = document.getElementById("settingAiMode").value;
     var url, model;
-    if (mode === "deepseek") { url = "https://api.deepseek.com/v1/chat/completions"; model = "deepseek-chat"; }
+    if (mode === "ollama") { url = "/api/chat"; model = "deepseek-r1:7b"; }
+    else if (mode === "deepseek") { url = "https://api.deepseek.com/v1/chat/completions"; model = "deepseek-chat"; }
     else if (mode === "kimi") { url = "https://api.moonshot.cn/v1/chat/completions"; model = "moonshot-v1-8k"; }
     else if (mode === "doubao") { url = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"; model = "doubao-pro-32k"; }
     var resp = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model: model, messages: [{role:"user",content:"hi"}], max_tokens: 5 })
     });
     if (resp.ok) { st.className = "api-status ok"; st.textContent = "\u2713 \u8fde\u63a5\u6210\u529f\uff01API Key \u6709\u6548"; }
